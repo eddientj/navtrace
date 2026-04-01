@@ -1,6 +1,6 @@
 {
   "name": "navtrace",
-  "displayName": "navtrace",
+  "displayName": "NavTrace",
   "description": "Track your navigation trail in VSCode",
   "version": "0.0.1",
   "engines": {
@@ -14,12 +14,52 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "navtrace",
+          "title": "NavTrace",
+          "icon": "media/navtrace.svg"
+        }
+      ]
+    },
+    "views": {
+      "navtrace": [
+        {
+          "type": "webview",
+          "id": "navtrace.trailView",
+          "name": "Call Trail"
+        }
+      ]
+    },
     "commands": [
       {
-        "command": "navtrace.helloWorld",
-        "title": "Hello World"
+        "command": "navtrace.clearTrail",
+        "title": "Clear Trail",
+        "category": "NavTrace",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "navtrace.exportTrail",
+        "title": "Export Trail",
+        "category": "NavTrace",
+        "icon": "$(export)"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "navtrace.clearTrail",
+          "when": "view == navtrace.trailView",
+          "group": "navigation"
+        },
+        {
+          "command": "navtrace.exportTrail",
+          "when": "view == navtrace.trailView",
+          "group": "navigation"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
