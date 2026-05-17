@@ -20,7 +20,7 @@ function makeSymbol(
 
 suite('Extension', () => {
     test('the extension activates and registers commands', async () => {
-        const ext = vscode.extensions.getExtension('undefined_publisher.navtrace');
+        const ext = vscode.extensions.getExtension('breadkrumb.navtrace');
         assert.ok(ext, 'extension should be registered');
         await ext!.activate();
         const commands = await vscode.commands.getCommands(true);

@@ -1,13 +1,33 @@
 {
   "name": "navtrace",
-  "displayName": "navtrace",
-  "description": "Track your navigation trail in VSCode",
+  "displayName": "NavTrace",
+  "description": "Record your code-navigation trail as a branching tree you can browse and walk back through.",
   "version": "0.1.0",
+  "publisher": "breadkrumb",
+  "license": "MIT",
+  "homepage": "https://github.com/eddientj/navtrace#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eddientj/navtrace.git"
+  },
+  "bugs": {
+    "url": "https://github.com/eddientj/navtrace/issues"
+  },
+  "keywords": [
+    "navigation",
+    "history",
+    "breadcrumbs",
+    "trace",
+    "code exploration",
+    "go to definition",
+    "onboarding"
+  ],
   "engines": {
     "vscode": "^1.110.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Visualization"
   ],
   "activationEvents": [
     "onStartupFinished"
@@ -44,7 +64,9 @@
       "properties": {
         "navtrace.languages": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": [
             "typescript",
             "typescriptreact",
@@ -118,16 +140,19 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "package": "vsce package",
+    "publish": "vsce publish"
   },
   "devDependencies": {
-    "@types/vscode": "^1.110.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
-    "typescript-eslint": "^8.56.1",
+    "@types/vscode": "^1.110.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.9.1",
     "eslint": "^9.39.3",
     "typescript": "^5.9.3",
-    "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5.2"
+    "typescript-eslint": "^8.56.1"
   }
 }
