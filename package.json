@@ -2,7 +2,7 @@
   "name": "navtrace",
   "displayName": "navtrace",
   "description": "Track your navigation trail in VSCode",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "engines": {
     "vscode": "^1.110.0"
   },
@@ -14,12 +14,103 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "navtrace",
+          "title": "NavTrace",
+          "icon": "$(milestone)"
+        }
+      ]
+    },
+    "views": {
+      "navtrace": [
+        {
+          "id": "navtrace.trail",
+          "name": "Trail",
+          "icon": "$(milestone)",
+          "contextualTitle": "NavTrace"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "navtrace.trail",
+        "contents": "No navigation steps yet.\nUse Go to Definition (F12) or similar navigation commands to start building a trail."
+      }
+    ],
+    "configuration": {
+      "title": "NavTrace",
+      "properties": {
+        "navtrace.languages": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [
+            "typescript",
+            "typescriptreact",
+            "javascript",
+            "javascriptreact",
+            "python",
+            "java",
+            "go",
+            "rust",
+            "c",
+            "cpp",
+            "csharp",
+            "php",
+            "ruby"
+          ],
+          "description": "Language IDs to track for navigation. Add others (e.g. 'kotlin', 'swift') or remove ones you don't want recorded."
+        }
+      }
+    },
     "commands": [
       {
-        "command": "navtrace.helloWorld",
-        "title": "Hello World"
+        "command": "navtrace.jumpTo",
+        "title": "NavTrace: Jump to Step"
+      },
+      {
+        "command": "navtrace.back",
+        "title": "NavTrace: Step Back",
+        "icon": "$(arrow-left)"
+      },
+      {
+        "command": "navtrace.clear",
+        "title": "NavTrace: Clear Trail",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "navtrace.showOutput",
+        "title": "NavTrace: Show Output",
+        "icon": "$(output)"
       }
-    ]
+    ],
+    "keybindings": [
+      {
+        "command": "navtrace.back",
+        "key": "ctrl+alt+left",
+        "mac": "cmd+alt+left"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "navtrace.back",
+          "when": "view == navtrace.trail",
+          "group": "navigation@1"
+        },
+        {
+          "command": "navtrace.clear",
+          "when": "view == navtrace.trail",
+          "group": "navigation@2"
+        },
+        {
+          "command": "navtrace.showOutput",
+          "when": "view == navtrace.trail",
+          "group": "navigation@3"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
