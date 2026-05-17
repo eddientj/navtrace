@@ -1,5 +1,11 @@
 # NavTrace
 
+[![Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/breadkrumb.navtrace?label=marketplace&logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=breadkrumb.navtrace)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/breadkrumb.navtrace)](https://marketplace.visualstudio.com/items?itemName=breadkrumb.navtrace)
+[![Downloads](https://img.shields.io/visual-studio-marketplace/d/breadkrumb.navtrace)](https://marketplace.visualstudio.com/items?itemName=breadkrumb.navtrace)
+[![Rating](https://img.shields.io/visual-studio-marketplace/r/breadkrumb.navtrace)](https://marketplace.visualstudio.com/items?itemName=breadkrumb.navtrace&ssr=false#review-details)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A VS Code extension that records your code-navigation trail — every `Go to Definition`, `Go to References`, and similar jump — as a **branching tree** you can browse and walk back through.
 
 Linear breadcrumbs lose history the moment you backtrack. NavTrace keeps it: each fork in your exploration becomes a visible branch you can return to.
