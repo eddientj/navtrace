@@ -2,6 +2,12 @@
 
 All notable changes to the "navtrace" extension will be documented in this file.
 
+## [0.1.2]
+
+### Changed
+
+- Resized icon from 1.4 MB to ~186 KB.
+
 ## [0.1.1]
 
 ### Added
