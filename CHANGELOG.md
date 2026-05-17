@@ -2,6 +2,12 @@
 
 All notable changes to the "navtrace" extension will be documented in this file.
 
+## [0.1.1]
+
+### Added
+
+- Extension icon.
+
 ## [0.1.0]
 
 ### Added

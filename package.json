@@ -2,9 +2,10 @@
   "name": "navtrace",
   "displayName": "NavTrace",
   "description": "Record your code-navigation trail as a branching tree you can browse and walk back through.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "breadkrumb",
   "license": "MIT",
+  "icon": "images/icon.png",
   "homepage": "https://github.com/eddientj/navtrace#readme",
   "repository": {
     "type": "git",
