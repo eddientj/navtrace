@@ -6,3 +6,4 @@ node_modules
 .claude/
 .DS_Store
 Thumbs.db
+vsc-extension-quickstart.md
