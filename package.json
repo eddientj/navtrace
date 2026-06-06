@@ -2,7 +2,7 @@
   "name": "navtrace",
   "displayName": "NavTrace",
   "description": "Record your code-navigation trail as a branching tree you can browse and walk back through.",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "publisher": "breadkrumb",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -84,6 +84,11 @@
             "ruby"
           ],
           "description": "Language IDs to track for navigation. Add others (e.g. 'kotlin', 'swift') or remove ones you don't want recorded."
+        },
+        "navtrace.autoRevealOnNavigate": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically open the NavTrace sidebar panel whenever a new navigation step is captured."
         }
       }
     },
@@ -91,6 +96,10 @@
       {
         "command": "navtrace.jumpTo",
         "title": "NavTrace: Jump to Step"
+      },
+      {
+        "command": "navtrace.goToDefinition",
+        "title": "NavTrace: Go to Definition"
       },
       {
         "command": "navtrace.back",
@@ -113,6 +122,11 @@
         "command": "navtrace.back",
         "key": "ctrl+alt+left",
         "mac": "cmd+alt+left"
+      },
+      {
+        "command": "navtrace.goToDefinition",
+        "key": "f12",
+        "when": "editorHasDefinitionProvider && editorTextFocus && !isInEmbeddedEditor"
       }
     ],
     "menus": {

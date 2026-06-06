@@ -2,6 +2,14 @@
 
 All notable changes to the "navtrace" extension will be documented in this file.
 
+## [0.1.4]
+
+### Added
+
+- **Status bar item** — shows live step count (`$(milestone) N steps`) in the bottom-right. Pulses green on each new capture. Click to open the trail view.
+- **`NavTrace: Go to Definition`** command — LSP-backed replacement for F12. Always jumps directly (no peek panel, no references fallback). Captures the step with an accurate source symbol from the language server. Bound to `F12` when a definition provider is active; falls back to VS Code default if no definition is found.
+- **`navtrace.autoRevealOnNavigate`** setting — when enabled, automatically focuses the NavTrace sidebar on every new step. Off by default.
+
 ## [0.1.2]
 
 ### Changed

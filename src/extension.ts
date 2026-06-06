@@ -22,6 +22,12 @@ function trackedLanguages(): Set<string> {
     return new Set(configured);
 }
 
+function autoReveal(): boolean {
+    return vscode.workspace
+        .getConfiguration('navtrace')
+        .get<boolean>('autoRevealOnNavigate', false);
+}
+
 async function openAt(file: string, line: number): Promise<void> {
     const doc = await vscode.workspace.openTextDocument(file);
     const editor = await vscode.window.showTextDocument(doc, { preview: false });
@@ -66,11 +72,53 @@ async function lookupContainingSymbol(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Status bar
+// ---------------------------------------------------------------------------
+
+function createStatusBar(): vscode.StatusBarItem {
+    const item = vscode.window.createStatusBarItem(
+        vscode.StatusBarAlignment.Right,
+        100
+    );
+    item.command = 'workbench.view.extension.navtrace';
+    item.tooltip = 'NavTrace — click to open trail';
+    return item;
+}
+
+function updateStatusBar(item: vscode.StatusBarItem, count: number): void {
+    item.text = `$(milestone) ${count} ${count === 1 ? 'step' : 'steps'}`;
+    item.show();
+}
+
+let pulseTimer: NodeJS.Timeout | null = null;
+
+function pulseStatusBar(item: vscode.StatusBarItem, count: number): void {
+    if (pulseTimer) {
+        clearTimeout(pulseTimer);
+    }
+    item.text = `$(check) ${count} ${count === 1 ? 'step' : 'steps'}`;
+    item.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+    item.show();
+    pulseTimer = setTimeout(() => {
+        item.backgroundColor = undefined;
+        updateStatusBar(item, count);
+    }, 800);
+}
+
+// ---------------------------------------------------------------------------
+// Activation
+// ---------------------------------------------------------------------------
+
 export function activate(context: vscode.ExtensionContext): { provider: TrailProvider } {
     const output = vscode.window.createOutputChannel('NavTrace');
     output.appendLine('NavTrace running...');
 
     const provider = new TrailProvider(context.workspaceState);
+
+    const statusBar = createStatusBar();
+    updateStatusBar(statusBar, provider.size());
+
     const view = vscode.window.createTreeView('navtrace.trail', {
         treeDataProvider: provider,
         showCollapseAll: true
@@ -83,7 +131,36 @@ export function activate(context: vscode.ExtensionContext): { provider: TrailPro
     let expectingSameFileJump = false;
     let suppressCaptureUntil = 0;
 
-    function recordNode(toFile: string, toLine: number, toUri: vscode.Uri, toPosition: vscode.Position): void {
+    function afterPush(node: NavNode, toUri: vscode.Uri, toPosition: vscode.Position): void {
+        const count = provider.size();
+
+        output.appendLine(
+            `+ ${node.symbol} — ${path.basename(node.fromFile)}:${node.fromLine} → ${path.basename(node.toFile)}:${node.toLine}`
+        );
+
+        pulseStatusBar(statusBar, count);
+
+        void view.reveal(node.id, { select: true, focus: false, expand: true })
+            .then(undefined, () => {});
+
+        if (autoReveal()) {
+            void vscode.commands.executeCommand('workbench.view.extension.navtrace');
+        }
+
+        void lookupContainingSymbol(toUri, toPosition).then(name => {
+            if (name && name !== node.symbol) {
+                provider.updateSymbol(node.id, name);
+                output.appendLine(`  resolved: ${node.symbol} → ${name}`);
+            }
+        });
+    }
+
+    function recordNode(
+        toFile: string,
+        toLine: number,
+        toUri: vscode.Uri,
+        toPosition: vscode.Position
+    ): void {
         if (!lastSymbol || !lastFrom) {
             return;
         }
@@ -96,23 +173,16 @@ export function activate(context: vscode.ExtensionContext): { provider: TrailPro
             toLine
         });
 
-        output.appendLine(
-            `+ ${node.symbol} — ${path.basename(node.fromFile)}:${node.fromLine} → ${path.basename(toFile)}:${toLine}`
-        );
-
-        void view.reveal(node.id, { select: true, focus: false, expand: true }).then(undefined, () => {});
-
-        void lookupContainingSymbol(toUri, toPosition).then(name => {
-            if (name && name !== node.symbol) {
-                provider.updateSymbol(node.id, name);
-                output.appendLine(`  resolved: ${node.symbol} → ${name}`);
-            }
-        });
-
         lastSymbol = null;
         lastFrom = null;
         expectingSameFileJump = false;
+
+        afterPush(node, toUri, toPosition);
     }
+
+    // -----------------------------------------------------------------------
+    // Heuristic capture (existing cursor / editor change listeners)
+    // -----------------------------------------------------------------------
 
     const onCursorMove = vscode.window.onDidChangeTextEditorSelection(event => {
         const editor = event.textEditor;
@@ -185,27 +255,122 @@ export function activate(context: vscode.ExtensionContext): { provider: TrailPro
         }
 
         const position = editor.selection.active;
-        recordNode(editor.document.fileName, position.line + 1, editor.document.uri, position);
+        recordNode(
+            editor.document.fileName,
+            position.line + 1,
+            editor.document.uri,
+            position
+        );
     });
 
-    const jumpTo = vscode.commands.registerCommand('navtrace.jumpTo', async (idOrNode: string | NavNode) => {
-        const id = typeof idOrNode === 'string' ? idOrNode : idOrNode?.id;
-        if (!id) {
-            return;
-        }
-        const node = provider.get(id);
-        if (!node) {
-            return;
-        }
+    // -----------------------------------------------------------------------
+    // LSP-backed Go to Definition (accurate, no peek/references noise)
+    // -----------------------------------------------------------------------
 
-        provider.setCurrent(id);
-        suppressCaptureUntil = Date.now() + 500;
-        try {
-            await openAt(node.toFile, node.toLine);
-        } catch (err) {
-            void vscode.window.showErrorMessage(`NavTrace: could not open ${node.toFile}: ${err}`);
+    const goToDefinition = vscode.commands.registerCommand(
+        'navtrace.goToDefinition',
+        async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                return;
+            }
+
+            const position = editor.selection.active;
+            const uri = editor.document.uri;
+            const file = editor.document.fileName;
+            const line = position.line + 1;
+
+            // Look up the source symbol name from LSP, fall back to word at cursor
+            const wordRange = editor.document.getWordRangeAtPosition(position);
+            const fallbackWord = wordRange
+                ? editor.document.getText(wordRange)
+                : 'unknown';
+            const sourceSymbol =
+                (await lookupContainingSymbol(uri, position)) ?? fallbackWord;
+
+            // Ask LSP for the definition location
+            type AnyLocation = vscode.Location | vscode.LocationLink;
+            const locations = await vscode.commands.executeCommand<AnyLocation[]>(
+                'vscode.executeDefinitionProvider',
+                uri,
+                position
+            );
+
+            if (!locations || locations.length === 0) {
+                // Nothing found — fall back to VS Code built-in (may open references)
+                await vscode.commands.executeCommand('editor.action.revealDefinition');
+                return;
+            }
+
+            const first = locations[0];
+            const targetUri =
+                'targetUri' in first ? first.targetUri : first.uri;
+            const targetRange =
+                'targetSelectionRange' in first && first.targetSelectionRange
+                    ? first.targetSelectionRange
+                    : 'targetRange' in first && first.targetRange
+                        ? first.targetRange
+                        : 'range' in first
+                            ? first.range
+                            : undefined;
+            if (!targetRange) {
+                await vscode.commands.executeCommand('editor.action.revealDefinition');
+                return;
+            }
+            const toLine = targetRange.start.line + 1;
+            const toFile = targetUri.fsPath;
+
+            // Record the step directly (bypass the heuristic capture)
+            suppressCaptureUntil = Date.now() + 1000;
+            const node = provider.push({
+                symbol: sourceSymbol,
+                fromFile: file,
+                fromLine: line,
+                toFile,
+                toLine
+            });
+
+            afterPush(node, targetUri, targetRange.start);
+
+            // Navigate — single result: jump straight there.
+            // Multiple results: show the quick-pick so user can choose.
+            if (locations.length === 1) {
+                await openAt(toFile, toLine);
+            } else {
+                await vscode.commands.executeCommand(
+                    'editor.action.revealDefinition'
+                );
+            }
         }
-    });
+    );
+
+    // -----------------------------------------------------------------------
+    // Existing commands
+    // -----------------------------------------------------------------------
+
+    const jumpTo = vscode.commands.registerCommand(
+        'navtrace.jumpTo',
+        async (idOrNode: string | NavNode) => {
+            const id = typeof idOrNode === 'string' ? idOrNode : idOrNode?.id;
+            if (!id) {
+                return;
+            }
+            const node = provider.get(id);
+            if (!node) {
+                return;
+            }
+
+            provider.setCurrent(id);
+            suppressCaptureUntil = Date.now() + 500;
+            try {
+                await openAt(node.toFile, node.toLine);
+            } catch (err) {
+                void vscode.window.showErrorMessage(
+                    `NavTrace: could not open ${node.toFile}: ${err}`
+                );
+            }
+        }
+    );
 
     const back = vscode.commands.registerCommand('navtrace.back', async () => {
         const current = provider.getCurrent();
@@ -216,6 +381,7 @@ export function activate(context: vscode.ExtensionContext): { provider: TrailPro
 
         const parent = provider.parentOf(current.id);
         provider.setCurrent(parent ? parent.id : null);
+        updateStatusBar(statusBar, provider.size());
 
         const target = parent
             ? { file: parent.toFile, line: parent.toLine }
@@ -224,14 +390,19 @@ export function activate(context: vscode.ExtensionContext): { provider: TrailPro
         suppressCaptureUntil = Date.now() + 500;
         try {
             await openAt(target.file, target.line);
-            output.appendLine(`back to ${path.basename(target.file)}:${target.line}`);
+            output.appendLine(
+                `back to ${path.basename(target.file)}:${target.line}`
+            );
         } catch (err) {
-            void vscode.window.showErrorMessage(`NavTrace: could not open ${target.file}: ${err}`);
+            void vscode.window.showErrorMessage(
+                `NavTrace: could not open ${target.file}: ${err}`
+            );
         }
     });
 
     const clear = vscode.commands.registerCommand('navtrace.clear', () => {
         provider.clear();
+        updateStatusBar(statusBar, 0);
         output.appendLine('trail cleared');
     });
 
@@ -241,9 +412,11 @@ export function activate(context: vscode.ExtensionContext): { provider: TrailPro
 
     context.subscriptions.push(
         output,
+        statusBar,
         view,
         onCursorMove,
         onNavigate,
+        goToDefinition,
         jumpTo,
         back,
         clear,
